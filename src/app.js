@@ -17,11 +17,11 @@ app.use(morgan(morganOption))
 app.use(helmet())
 app.use(cors())
 
-app.use(errorHandler)
+app.use(foldernoteRouter)
 
 app.get('/', (req, res) => {
     res.send('Hello, world!')
 })
+app.use(errorHandler)
 
-app.use(foldernoteRouter)
 module.exports = app
