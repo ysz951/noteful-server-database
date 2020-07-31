@@ -4,8 +4,8 @@ const morgan = require('morgan')
 const cors = require('cors')
 const helmet = require('helmet')
 const { NODE_ENV } = require('./config')
-const db = require('./store')
-const foldernoteRouter = require('./folder-note/folder-note-router')
+const notesRouter = require('./notes/notes-router')
+const foldersRouter = require('./folders/folders-router')
 const errorHandler = require('./errorHandler')
 const app = express()
 
@@ -17,8 +17,8 @@ app.use(morgan(morganOption))
 app.use(helmet())
 app.use(cors())
 
-app.use(foldernoteRouter)
-
+app.use('/api/notes', notesRouter)
+app.use('/api/folders', foldersRouter)
 app.get('/', (req, res) => {
     res.send('Hello, world!')
 })

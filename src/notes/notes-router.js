@@ -1,98 +1,84 @@
 const express = require('express')
-const { v4: uuid } = require('uuid')
+const path = require('path')
+const xss = require('xss')
 const logger = require('../logger')
-const db = require('../store')
-const {folders, notes} = db();
+const NotesService = require('./notes-service')
 
 const notesRouter = express.Router()
-const bodyParser = express.json()
+const jsonParser = express.json()
 
-notesRouter
-  .route('/notes')
-  .get((req, res) => {
-    res.json(notes);
-  })
-  .post(bodyParser, (req, res) => {
-    for (let field of ['name', 'modified', 'folderId', 'content']) {
-        if (!req.body[field]){
-            logger.error(`${field} is required`)
-            return res.status(400).send(`'${field}' is required`)
-        }
-    }
-    const { name, modified, folderId, content } = req.body;
-
-    for (let note of notes){
-        if (note.name === name && note.folderId === folderId ){
-            logger.error(`${name} is a repeated note in the same folder`)
-            return res.status(400).send(`'${name}' has already been used in this folder`)
-        }
-    }
-
-    const foldersIndex = folders.findIndex(f => f.id == folderId);
-    if (foldersIndex === -1) {
-        logger.error(`Folder with id ${folderId} not found.`);
-        return res
-          .status(404)
-          .send('Please add note in an existing folder');
-    }
-    if (content.length < 5) {
-        logger.error(`The length of 'content' is less than 5`)
-        return res.status(400).send(`The length of 'content' should be at least 5`)
-    }
-
-    const id = uuid();
-
-    const note = {
-        id,
-        name,
-        modified,
-        folderId,
-        content
-    };
-
-    notes.push(note);
-    logger.info(`Note with id ${id} created`);
-    res
-        .status(201)
-        .location(`http://localhost:8000/notes/${id}`)
-        .json(note);
+const serializeNote = note => ({
+  id: note.id,
+  name: xss(note.name),
+  content: xss(note.content),
+  modified: note.modified,
+  folderid: Number(note.folderid),
 })
 
 notesRouter
-  .route('/notes/:id')
-  .get((req, res) => {
-    const { id } = req.params;
-    const note = notes.find(n => n.id == id);
-  
-    // make sure we found a card
-    if (!note) {
-      logger.error(`Note with id ${id} not found.`);
-      return res
-        .status(404)
-        .send('Note Not Found');
-    }
-  
-    res.json(note);
+  .route('/')
+  .get((req, res, next) => {
+    const knexInstance = req.app.get('db')
+    NotesService.getAllNotes(knexInstance)
+      .then(notes => {
+        res.json(notes.map(serializeNote))
+      })
+      .catch(next)
   })
-  .delete((req, res) => {
-    const { id } = req.params;
+  .post(jsonParser, (req, res, next) => {
+    const { name, folderid, content } = req.body
+    const newNote = { name, folderid, content }
 
-    const noteIndex = notes.findIndex(n => n.id == id);
+    for (const [key, value] of Object.entries(newNote))
+      if (value == null)
+        return res.status(400).json({
+          error: { message: `Missing '${key}' in request body` }
+        })
+    NotesService.insertNote(
+      req.app.get('db'),
+      newNote
+    )
+      .then(note => {
+        res
+          .status(201)
+          .location(path.posix.join(req.originalUrl, `/${note.id}`))
+          .json(serializeNote(note))
+      })
+      .catch(next)
+  })
+  
 
-    if (noteIndex === -1) {
-        logger.error(`Note with id ${id} not found.`);
-        return res
-        .status(404)
-        .send('Not found');
-    }
 
-    notes.splice(noteIndex, 1);
-
-    logger.info(`Card with id ${id} deleted.`);
-
-    res
-        .status(204)
-        .end();
+notesRouter
+  .route('/:note_id')
+  .all((req, res, next) => {
+    NotesService.getById(
+      req.app.get('db'),
+      req.params.note_id
+    )
+      .then(note => {
+        if (!note) {
+          return res.status(404).json({
+            error: { message: `Note doesn't exist` }
+          })
+        }
+        res.note = note
+        next()
+      })
+      .catch(next)
+  })
+  .get((req, res, next) => {
+    res.json(serializeNote(res.note))
+  })
+  .delete((req, res, next) => {
+    NotesService.deleteNote(
+      req.app.get('db'),
+      req.params.note_id
+    )
+      .then(numRowsAffected => {
+        res.status(204).end()
+      })
+      .catch(next)
   })
 
 module.exports = notesRouter

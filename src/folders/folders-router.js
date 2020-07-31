@@ -1,60 +1,70 @@
 const express = require('express')
-const { v4: uuid } = require('uuid')
+const path = require('path')
+const xss = require('xss')
 const logger = require('../logger')
-const db = require('../store')
-const {folders} = db();
+const FoldersService = require('./folders-service')
 
 const foldersRouter = express.Router()
-const bodyParser = express.json()
+const jsonParser = express.json()
 
-foldersRouter
-  .route('/folders')
-  .get((req, res) => {
-    res.json(folders);
-  })
-  .post(bodyParser, (req, res) => {
-    const { name } = req.body;
-    if (!name){
-        logger.error(`'name' is required`)
-        return res.status(400).send(`'name' is required`)
-    }
-
-    for (let folder of folders){
-        if (folder.name === name){
-            logger.error(`${name} is a repeated folder name`)
-            return res.status(400).send(`${name} has already been used`)
-        }
-    }
-    const id = uuid();
-
-    const folder = {
-        id,
-        name
-    };
-
-    folders.push(folder);
-    logger.info(`Folder with id ${id} created`);
-    res
-        .status(201)
-        .location(`http://localhost:8000/folders/${id}`)
-        .json(folder);
+const serializeFolder = folder => ({
+  id: folder.id,
+  name: xss(folder.name)
 })
 
 foldersRouter
-  .route('/folders/:id')
-  .get((req, res) => {
-    const { id } = req.params;
-    const note = notes.find(n => n.id == id);
-  
-    // make sure we found a card
-    if (!note) {
-      logger.error(`Note with id ${id} not found.`);
-      return res
-        .status(404)
-        .send('Note Not Found');
-    }
-  
-    res.json(note);
+  .route('/')
+  .get((req, res, next) => {
+    const knexInstance = req.app.get('db')
+    FoldersService.getAllFolders(knexInstance)
+      .then(folders => {
+        res.json(folders.map(serializeFolder))
+      })
+      .catch(next)
   })
+  .post(jsonParser, (req, res, next) => {
+    const { name } = req.body
+    const newFolder = { name }
 
+    for (const [key, value] of Object.entries(newFolder))
+      if (value == null)
+        return res.status(400).json({
+          error: { message: `Missing '${key}' in request body` }
+        })
+    FoldersService.insertFolder(
+      req.app.get('db'),
+      newFolder
+    )
+      .then(folder => {
+        res
+          .status(201)
+          .location(path.posix.join(req.originalUrl, `/${folder.id}`))
+          .json(serializeFolder(folder))
+      })
+      .catch(next)
+  })
+  
+
+
+foldersRouter
+  .route('/:folder_id')
+  .all((req, res, next) => {
+    FoldersService.getById(
+      req.app.get('db'),
+      req.params.folder_id
+    )
+      .then(folder => {
+        if (!folder) {
+          return res.status(404).json({
+            error: { message: `Folder doesn't exist` }
+          })
+        }
+        res.folder = folder
+        next()
+      })
+      .catch(next)
+  })
+  .get((req, res, next) => {
+    res.json(serializeFolder(res.folder))
+  })
 module.exports = foldersRouter
