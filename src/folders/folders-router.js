@@ -3,7 +3,8 @@ const path = require('path')
 const xss = require('xss')
 const logger = require('../logger')
 const FoldersService = require('./folders-service')
-
+const formatName = require('../formatName')
+const validateName = require('../validateName')
 const foldersRouter = express.Router()
 const jsonParser = express.json()
 
@@ -25,12 +26,20 @@ foldersRouter
   .post(jsonParser, (req, res, next) => {
     const { name } = req.body
     const newFolder = { name }
-
+    
     for (const [key, value] of Object.entries(newFolder))
       if (value == null)
         return res.status(400).json({
           error: { message: `Missing '${key}' in request body` }
         })
+    const newName= formatName(name);
+    const errMessage = validateName(newName);
+    if (errMessage) {
+      return res.status(400).json({
+        error: { message: `${errMessage}` }
+      })
+    }
+    newFolder.name = newName;
     FoldersService.insertFolder(
       req.app.get('db'),
       newFolder

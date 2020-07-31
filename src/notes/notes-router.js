@@ -3,7 +3,8 @@ const path = require('path')
 const xss = require('xss')
 const logger = require('../logger')
 const NotesService = require('./notes-service')
-
+const formatName = require('../formatName')
+const validateName = require('../validateName')
 const notesRouter = express.Router()
 const jsonParser = express.json()
 
@@ -34,6 +35,14 @@ notesRouter
         return res.status(400).json({
           error: { message: `Missing '${key}' in request body` }
         })
+    const newName= formatName(name);
+    const errMessage = validateName(newName);
+    if (errMessage) {
+      return res.status(400).json({
+        error: { message: `${errMessage}` }
+      })
+    }
+    newFolder.name = newName;
     NotesService.insertNote(
       req.app.get('db'),
       newNote
