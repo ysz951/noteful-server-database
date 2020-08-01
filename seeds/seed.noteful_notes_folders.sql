@@ -9,7 +9,7 @@ VALUES
     ('Spangley');
     
 
-INSERT INTO noteful_notes (name, content, folderid)
+INSERT INTO noteful_notes (name, content, "folderId")
 VALUES
     ('Dogs',
     'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Natus consequuntur deserunt commodi, nobis qui inventore corrupti iusto aliquid debitis unde non. Adipisci, pariatur. Molestiae, libero esse hic adipisci autem neque?', 1),

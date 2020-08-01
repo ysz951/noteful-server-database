@@ -4,7 +4,7 @@ const validateName = (Name) => {
         return /^[A-Za-z]{1,1}$/.test(ch);
     }
     if (name.length === 0) {
-    return "Name is required";
+        return "Name is required";
     } else if (name.length < 3) {
         for (let item of name){
             if (!isAlpha(item) && item !== ' '){
