@@ -27,7 +27,7 @@ notesRouter
       .catch(next)
   })
   .post(jsonParser, (req, res, next) => {
-    const { name, folderId, content } = req.body
+    const { name, folderId, content = "" } = req.body
     const newNote = { name, folderId, content }
 
     for (const [key, value] of Object.entries(newNote))
@@ -83,6 +83,37 @@ notesRouter
     NotesService.deleteNote(
       req.app.get('db'),
       req.params.note_id
+    )
+      .then(numRowsAffected => {
+        res.status(204).end()
+      })
+      .catch(next)
+  })
+  .patch(jsonParser, (req, res, next) => {
+    const { name, content, folderId } = req.body
+    const noteToUpdate = { name, folderId }
+    
+    // console.log('ok')
+    for (const [key, value] of Object.entries(noteToUpdate))
+      if (value == null)
+        return res.status(400).json({
+          error: { message: `Missing '${key}' in request body` }
+        })
+    if (content) noteToUpdate.content = content
+    const newName= formatName(name);
+    const errMessage = validateName(newName);
+    if (errMessage) {
+      return res.status(400).json({
+        error: { message: `${errMessage}` }
+      })
+    }
+    noteToUpdate.name = newName;
+    noteToUpdate.modified = new Date();
+    console.log(noteToUpdate)
+    NotesService.updateNote(
+      req.app.get('db'),
+      req.params.note_id,
+      noteToUpdate
     )
       .then(numRowsAffected => {
         res.status(204).end()
