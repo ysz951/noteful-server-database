@@ -100,6 +100,7 @@ notesRouter
           error: { message: `Missing '${key}' in request body` }
         })
     if (content) noteToUpdate.content = content
+    else noteToUpdate.content = ""
     const newName= formatName(name);
     const errMessage = validateName(newName);
     if (errMessage) {
