@@ -94,13 +94,16 @@ notesRouter
     const noteToUpdate = { name, folderId }
     
     // console.log('ok')
-    for (const [key, value] of Object.entries(noteToUpdate))
-      if (value == null)
+    const numberOfValues = Object.values(noteToUpdate).filter(Boolean).length
+    if (numberOfValues === 0) {
         return res.status(400).json({
-          error: { message: `Missing '${key}' in request body` }
+        error: {
+            message: `Request body must contain both 'name' and 'content'`
+        }
         })
-    if (content) noteToUpdate.content = content
-    else noteToUpdate.content = ""
+    }
+    noteToUpdate.content = content
+    // else noteToUpdate.content = ""
     const newName= formatName(name);
     const errMessage = validateName(newName);
     if (errMessage) {
@@ -109,8 +112,8 @@ notesRouter
       })
     }
     noteToUpdate.name = newName;
-    noteToUpdate.modified = new Date();
-    console.log(noteToUpdate)
+    // noteToUpdate.modified = new Date();
+    // console.log(noteToUpdate)
     NotesService.updateNote(
       req.app.get('db'),
       req.params.note_id,
