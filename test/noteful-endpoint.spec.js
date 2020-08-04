@@ -52,11 +52,34 @@ describe.only('Bookmarks Endpoints', () => {
             .get(`/api/notes/${secondNote.id}`)
             .expect(401, { error: 'Unauthorized request' })
         })
-    
+        it(`responds with 401 Unauthorized for GET /api/folders/:folder_id`, () => {
+            const secondFolder = testFolders[1]
+            return supertest(app)
+            .get(`/api/notes/${secondFolder.id}`)
+            .expect(401, { error: 'Unauthorized request' })
+        })
         it(`responds with 401 Unauthorized for DELETE /api/notes/:note_id`, () => {
             const aNote = testNotes[1]
             return supertest(app)
             .delete(`/api/notes/${aNote.id}`)
+            .expect(401, { error: 'Unauthorized request' })
+        })
+        it(`responds with 401 Unauthorized for DELETE /api/folders/:folder_id`, () => {
+            const aFolder= testFolders[1]
+            return supertest(app)
+            .delete(`/api/notes/${aFolder.id}`)
+            .expect(401, { error: 'Unauthorized request' })
+        })
+        it(`responds with 401 Unauthorized for PATCH /api/folders/:folder_id`, () => {
+            return supertest(app)
+            .patch('/api/folders/1')
+            .send({ name: 'test-title' })
+            .expect(401, { error: 'Unauthorized request' })
+        })
+        it(`responds with 401 Unauthorized for PATCH /api/noters/:note_id`, () => {
+            return supertest(app)
+            .patch('/api/notes/1')
+            .send({ name: 'test-title', content: 'test-content', folderId: 2 })
             .expect(401, { error: 'Unauthorized request' })
         })
     })
@@ -91,7 +114,6 @@ describe.only('Bookmarks Endpoints', () => {
             })
         })
         context(`Given an XSS attack note`, () => {
-            // const testNotes = makeNotesArray();
             const { maliciousNote, expectedNote } = makeMaliciousNote()
             const testFolders = makeFoldersArray();
             beforeEach('insert malicious note', () => {
